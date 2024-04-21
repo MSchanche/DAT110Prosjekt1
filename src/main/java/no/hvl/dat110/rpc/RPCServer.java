@@ -24,41 +24,54 @@ public class RPCServer {
 	}
 	
 	public void run() {
-		
-		// the stop RPC method is built into the server
-		RPCRemoteImpl rpcstop = new RPCServerStopImpl(RPCCommon.RPIDSTOP,this);
-		
-		System.out.println("RPC SERVER RUN - Services: " + services.size());
-			
-		connection = msgserver.accept(); 
-		
-		System.out.println("RPC SERVER ACCEPTED");
-		
-		boolean stop = false;
-		
-		while (!stop) {
-	    
-		   byte rpcid = 0;
-		   Message requestmsg, replymsg;
-		   
-		   // TODO - START
-		   // - receive a Message containing an RPC request
-		   // - extract the identifier for the RPC method to be invoked from the RPC request
-		   // - extract the method's parameter by decapsulating using the RPCUtils
-		   // - lookup the method to be invoked
-		   // - invoke the method and pass the param
-		   // - encapsulate return value 
-		   // - send back the message containing the RPC reply
-			
-		   if (true)
-				throw new UnsupportedOperationException(TODO.method());
-		   
-		   // TODO - END
 
-			// stop the server if it was stop methods that was called
-		   if (rpcid == RPCCommon.RPIDSTOP) {
-			   stop = true;
-		   }
+		// the stop RPC method is built into the server
+		RPCRemoteImpl rpcstop = new RPCServerStopImpl(RPCCommon.RPIDSTOP, this);
+
+
+		System.out.println("RPC SERVER RUN - Services: " + services.size());
+
+		connection = msgserver.accept();
+
+		System.out.println("RPC SERVER ACCEPTED");
+
+		boolean stop = false;
+
+		while (!stop) {
+
+			Message requestmsg, replymsg;
+
+			// - receive a Message containing an RPC request
+			requestmsg = connection.receive();
+			byte[] requestdata = requestmsg.getData();
+
+			// - extract the identifier for the RPC method to be invoked from the RPC request
+			byte rpcid = requestdata[0];
+
+			// - extract the method's parameter by decapsulating using the RPCUtils
+			byte[] param = RPCUtils.decapsulate(requestdata);
+
+			// - lookup the method to be invoked
+			RPCRemoteImpl rpcImpl = services.get(rpcid);
+
+			if (rpcImpl != null) {
+				// - invoke the method and pass the param
+				byte[] rpcReply = rpcImpl.invoke(param);
+
+				// - encapsulate return value
+				byte[] rpcmsg = RPCUtils.encapsulate(rpcid, rpcReply);
+
+				// - send back the message containing the RPC reply
+				replymsg = new Message(rpcmsg);
+				connection.send(replymsg);
+			} else {
+				System.err.println("RPC method with ID " + rpcid + " not found");
+			}
+
+			// - stop the server if it was the stop methods that was called
+			if (rpcid == RPCCommon.RPIDSTOP) {
+				stop = true;
+			}
 		}
 	
 	}
